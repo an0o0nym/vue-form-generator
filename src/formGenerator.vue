@@ -54,7 +54,9 @@ export default {
 			validator: function(value) {
 				return value.length > 0;
 			}
-		}
+		},
+
+		externalErrors: Object
 	},
 
 	data() {
@@ -84,6 +86,24 @@ export default {
 			}
 
 			return res;
+		},
+		normalizedExternalErrors() {
+			let errors = [];
+
+			for (let [modelName, msgs] of Object.entries(this.externalErrors)) {
+				let fieldSchema = this.getFieldSchema(modelName);
+
+				if (fieldSchema === null)
+					continue;
+
+				msgs.forEach(msg => {
+					errors.push({
+						error: msg,
+						field: fieldSchema
+					});
+				});
+			}
+			return errors;
 		}
 	},
 
@@ -104,6 +124,17 @@ export default {
 					}
 				});
 			}
+		},
+		// new externalErrors loaded
+		externalErrors: function(newErrors, oldErrors) {
+			if (oldErrors === newErrors)
+				return;
+
+			this.clearValidationErrors();
+			this.errors = this.normalizedExternalErrors;
+
+			let isValid = this.errors.length === 0;
+			this.$emit("validated", isValid, this.errors, this);
 		}
 	},
 
@@ -202,6 +233,23 @@ export default {
 			forEach(this.$children, child => {
 				child.clearValidationErrors();
 			});
+		},
+
+		// Get field schema based on modelName
+		getFieldSchema(modelName) {
+			if (modelName === undefined) {
+				return null;
+			}
+
+			if (this.schema && this.schema.fields) {
+				let schema = this.schema.fields
+					.filter(field => field.model === modelName);
+
+				if (schema.length > 0 )
+					return schema[0];
+			}
+
+			return null;
 		},
 	}
 };
